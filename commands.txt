@@ -1,0 +1,58 @@
+CREATE TABLE pmaster (
+    itemcode VARCHAR(30) PRIMARY KEY,
+    itemname VARCHAR(100),
+    itemdesc TEXT,
+    itemused VARCHAR(45),
+    qty INT,
+    dtpur DATE,
+    expiry DATE,
+    avgcost INT,
+    minstock INT,
+    maxstock INT,
+    latestprice INT,
+    lowest INT,
+    highest INT
+);
+
+CREATE TABLE suppliers (
+    itemcode VARCHAR(30),
+    supid VARCHAR(30),
+    supname VARCHAR(50),
+    PRIMARY KEY (itemcode, supid),
+    FOREIGN KEY (itemcode) REFERENCES pmaster(itemcode)
+);
+
+
+CREATE TABLE customer (
+    cid VARCHAR(30) PRIMARY KEY;
+    cname VARCHAR(100);
+    number VARCHAR(10);
+);
+
+CREATE TABLE indwards (
+    itemcode VARCHAR(30),
+    supid VARCHAR(30),
+    uuidin VARCHAR(30) PRIMARY KEY,
+    buildqty INT,
+    reciveqty INT,
+    acceptqty INT, 
+    rejectqty INT,
+    yearmanufactor INT,
+    FOREIGN KEY (itemcode) REFERENCES pmaster(itemcode),
+    FOREIGN KEY (supid) REFERENCES suppliers(supid)
+);
+
+CREATE TABLE outwards (
+    itemcode VARCHAR(30),
+    cid VARCHAR(30),
+    uuidout VARCHAR(30) PRIMARY KEY,
+    referece TEXT,
+    issueqty INT,
+    salevalue INT,
+    partsavgtot INT,
+    profits INT,
+    profitpercentage INT,
+    FOREIGN KEY (itemcode) REFERENCES pmaster(itemcode),
+    FOREIGN KEY (cid) REFERENCES customer(cid)
+);
+
