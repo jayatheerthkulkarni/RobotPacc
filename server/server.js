@@ -88,12 +88,17 @@ app.get('/health', async (req, res) => {
         res.status(500).json({ status: 'error', message: 'Health check failed' });
     }
 });
-
+// Home 
+app.get("/", (req,res) => {
+    res.sendFile(directory+"/Home/index.html");
+});
 // Start the server
 app.listen(port, () => {
     console.log(`Listening at port ${port}`);
     console.log(`Serving static files from ${directory}`);
 });
+
+
 
 // Graceful shutdown
 process.on('SIGINT', async () => {
