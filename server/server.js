@@ -88,17 +88,24 @@ app.get('/health', async (req, res) => {
         res.status(500).json({ status: 'error', message: 'Health check failed' });
     }
 });
+
+
 // Home 
 app.get("/", (req,res) => {
     res.sendFile(directory+"/Home/index.html");
 });
+// AddItems
+app.get("/additems", (req,res) => {
+    res.sendFile(directory+"/AddItems/index.html");
+});
+// Add-Items The difference is this takes a form and the above API takes only form and routes to an option
+
+
 // Start the server
 app.listen(port, () => {
     console.log(`Listening at port ${port}`);
     console.log(`Serving static files from ${directory}`);
 });
-
-
 
 // Graceful shutdown
 process.on('SIGINT', async () => {
