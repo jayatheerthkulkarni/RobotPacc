@@ -36,7 +36,10 @@ let db;
     }
 })();
 
-// Define endpoints
+// ---------------------------------------
+//           Existing Endpoints
+// ---------------------------------------
+
 // 1. Total profits
 app.get('/profits-total', async (req, res) => {
     try {
@@ -46,7 +49,6 @@ app.get('/profits-total', async (req, res) => {
 
         const row = await db.get('SELECT SUM(profits) AS totalProfits FROM outwards');
         const totalProfits = row.totalProfits !== null ? row.totalProfits : 0;
-
         res.json({ totalProfits });
     } catch (error) {
         console.error('Error fetching total profits:', error);
@@ -70,7 +72,6 @@ app.get('/avg-cost', async (req, res) => {
     try {
         const row = await db.get('SELECT AVG(avgcost) AS avgCost FROM pmaster');
         const avgCost = row.avgCost !== null ? row.avgCost : 0;
-
         res.json({ avgCost });
     } catch (error) {
         console.error('Error fetching average cost:', error);
@@ -89,17 +90,76 @@ app.get('/health', async (req, res) => {
     }
 });
 
-
 // Home 
-app.get("/", (req,res) => {
-    res.sendFile(directory+"/Home/index.html");
+app.get("/", (req, res) => {
+    res.sendFile(directory + "/Home/index.html");
 });
-// AddItems
-app.get("/additems", (req,res) => {
-    res.sendFile(directory+"/AddItems/index.html");
-});
-// Add-Items The difference is this takes a form and the above API takes only form and routes to an option
 
+// AddItems
+app.get("/additems", (req, res) => {
+    res.sendFile(directory + "/AddItems/index.html");
+});
+
+
+// ---------------------------------------
+//        NEW: POST Endpoint to Add Items
+// ---------------------------------------
+app.post('/pmaster', async (req, res) => {
+    try {
+        if (!db) {
+            return res.status(500).json({ error: 'Database not initialized.' });
+        }
+        
+        const {
+            itemcode,
+            itemname,
+            itemdesc,
+            itemused,
+            qty,
+            dtpur,
+            expiry,
+            avgcost,
+            minstock,
+            maxstock,
+            latestprice,
+            lowest,
+            highest
+        } = req.body;
+
+        // Insert the new item into pmaster
+        const sql = `
+            INSERT INTO pmaster (
+                itemcode, itemname, itemdesc, itemused, qty,
+                dtpur, expiry, avgcost, minstock, maxstock,
+                latestprice, lowest, highest
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `;
+        await db.run(sql, [
+            itemcode,
+            itemname,
+            itemdesc,
+            itemused,
+            qty,
+            dtpur,
+            expiry,
+            avgcost,
+            minstock,
+            maxstock,
+            latestprice,
+            lowest,
+            highest
+        ]);
+
+        res.status(200).json({ message: 'Item added successfully' });
+    } catch (error) {
+        console.error('Error adding item:', error);
+        res.status(500).json({ error: 'Failed to add item' });
+    }
+});
+// Server to add a route to /add-item
+app.get("/add-items", (req, res)=>{
+    res.sendFile(directory+"/Add-Item/index.html");
+});
 
 // Start the server
 app.listen(port, () => {
