@@ -30,8 +30,25 @@ let db;
             driver: sqlite3.Database,
         });
         console.log('Connected to the SQLite database.');
-        // Ensure suppliers table exists and has the new columns (optional, but good to have for first run or verification)
+
+        // Ensure tables exist (and customer table is created if not)
         await db.exec(`
+            CREATE TABLE IF NOT EXISTS pmaster (
+                itemcode VARCHAR(30) PRIMARY KEY,
+                itemname VARCHAR(100),
+                itemdesc TEXT,
+                itemused VARCHAR(45),
+                qty INT,
+                dtpur DATE,
+                expiry DATE,
+                avgcost INT,
+                minstock INT,
+                maxstock INT,
+                latestprice INT,
+                lowest INT,
+                highest INT
+            );
+
             CREATE TABLE IF NOT EXISTS suppliers (
                 itemcode VARCHAR(30),
                 supid VARCHAR(30),
@@ -43,9 +60,43 @@ let db;
                 notes TEXT,
                 PRIMARY KEY (itemcode, supid),
                 FOREIGN KEY (itemcode) REFERENCES pmaster(itemcode)
-            )
+            );
+
+            CREATE TABLE IF NOT EXISTS customer (
+                cid VARCHAR(30) PRIMARY KEY,
+                cname VARCHAR(100),
+                number VARCHAR(10)
+            );
+
+            CREATE TABLE IF NOT EXISTS indwards (
+                itemcode VARCHAR(30),
+                supid VARCHAR(30),
+                uuidin VARCHAR(30) PRIMARY KEY,
+                buildqty INT,
+                reciveqty INT,
+                acceptqty INT,
+                rejectqty INT,
+                yearmanufactor INT,
+                FOREIGN KEY (itemcode) REFERENCES pmaster(itemcode),
+                FOREIGN KEY (supid) REFERENCES suppliers(supid)
+            );
+
+            CREATE TABLE IF NOT EXISTS outwards (
+                itemcode VARCHAR(30),
+                cid VARCHAR(30),
+                uuidout VARCHAR(30) PRIMARY KEY,
+                referece TEXT,
+                issueqty INT,
+                salevalue INT,
+                partsavgtot INT,
+                profits INT,
+                profitpercentage INT,
+                FOREIGN KEY (itemcode) REFERENCES pmaster(itemcode),
+                FOREIGN KEY (cid) REFERENCES customer(cid)
+            );
         `);
-        console.log('Suppliers table checked/created with new columns.');
+
+        console.log('Database tables checked/created.');
 
     } catch (error) {
         console.error('Failed to connect to the database:', error);
@@ -126,9 +177,9 @@ app.get("/add-suppliers", (req, res)=>{
     res.sendFile(directory+"/Add-Suppliers/index.html");
 });
 
-// Server to add a route to /add-suppliers
+// Server to add a route to /add-customers
 app.get("/add-customers", (req, res)=>{
-    res.sendFile(directory+"/Add-Customers/index.html");
+    res.sendFile(directory+"/Add-Customer/index.html");
 });
 
 
@@ -151,14 +202,8 @@ app.post('/suppliers', async (req, res) => {
             notes
         } = req.body;
 
-        // Assuming you want to associate the supplier with a default itemcode (or handle itemcode differently)
-        // Since 'suppliers' table has itemcode as part of the primary key, you MUST provide an itemcode.
-        // If you are adding a general supplier and not linking it to a specific item yet, you might need to rethink
-        // how you want to handle the 'itemcode' in this context.
-        // For now, let's assume you are providing an 'itemcode' in the request body as well, or you have a default itemcode.
 
-        const itemcode = 'DEFAULT_ITEM_CODE'; // Replace 'DEFAULT_ITEM_CODE' with a suitable default or get it from req.body if needed.
-                                        // If you get it from req.body, add it to the frontend payload as well.
+        const itemcode = 'DEFAULT_ITEM_CODE'; // You might want to handle itemcode differently
 
         // Insert the new supplier into the 'suppliers' table
         const sql = `
@@ -167,8 +212,8 @@ app.post('/suppliers', async (req, res) => {
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         `;
         await db.run(sql, [
-            itemcode,         // Assuming a default or provided itemcode
-            suppliercode,   // Using suppliercode from form as supid
+            itemcode,
+            suppliercode,
             suppliername,
             contactperson,
             phone,
@@ -181,6 +226,41 @@ app.post('/suppliers', async (req, res) => {
     } catch (error) {
         console.error('Error adding supplier:', error);
         res.status(500).json({ error: 'Failed to add supplier' });
+    }
+});
+
+
+// ---------------------------------------
+//        POST Endpoint to Add Customer
+// ---------------------------------------
+app.post('/customers', async (req, res) => {
+    try {
+        if (!db) {
+            return res.status(500).json({ error: 'Database not initialized.' });
+        }
+
+        const {
+            customerid, // This will be used as cid in the 'customer' table
+            customername, // This will be used as cname in the 'customer' table
+            customernumber // This will be used as number in the 'customer' table
+        } = req.body;
+
+        // Insert the new customer into the 'customer' table
+        const sql = `
+            INSERT INTO customer (
+                cid, cname, number
+            ) VALUES (?, ?, ?)
+        `;
+        await db.run(sql, [
+            customerid,
+            customername,
+            customernumber
+        ]);
+
+        res.status(200).json({ message: 'Customer added successfully' });
+    } catch (error) {
+        console.error('Error adding customer:', error);
+        res.status(500).json({ error: 'Failed to add customer' });
     }
 });
 
