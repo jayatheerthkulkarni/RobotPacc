@@ -17,7 +17,12 @@ CREATE TABLE pmaster (
 CREATE TABLE suppliers (
     itemcode VARCHAR(30),
     supid VARCHAR(30),
-    supname VARCHAR(50),
+    supname VARCHAR(50), 
+    contactperson VARCHAR(100), 
+    phone VARCHAR(20), 
+    email VARCHAR(100), 
+    address TEXT, 
+    notes TEXT,
     PRIMARY KEY (itemcode, supid),
     FOREIGN KEY (itemcode) REFERENCES pmaster(itemcode)
 );

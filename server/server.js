@@ -30,6 +30,23 @@ let db;
             driver: sqlite3.Database,
         });
         console.log('Connected to the SQLite database.');
+        // Ensure suppliers table exists and has the new columns (optional, but good to have for first run or verification)
+        await db.exec(`
+            CREATE TABLE IF NOT EXISTS suppliers (
+                itemcode VARCHAR(30),
+                supid VARCHAR(30),
+                supname VARCHAR(50),
+                contactperson VARCHAR(100),
+                phone VARCHAR(20),
+                email VARCHAR(100),
+                address TEXT,
+                notes TEXT,
+                PRIMARY KEY (itemcode, supid),
+                FOREIGN KEY (itemcode) REFERENCES pmaster(itemcode)
+            )
+        `);
+        console.log('Suppliers table checked/created with new columns.');
+
     } catch (error) {
         console.error('Failed to connect to the database:', error);
         process.exit(1); // Exit the process with failure
@@ -90,7 +107,7 @@ app.get('/health', async (req, res) => {
     }
 });
 
-// Home 
+// Home
 app.get("/", (req, res) => {
     res.sendFile(directory + "/Home/index.html");
 });
@@ -100,66 +117,73 @@ app.get("/additems", (req, res) => {
     res.sendFile(directory + "/AddItems/index.html");
 });
 
-
-// ---------------------------------------
-//        NEW: POST Endpoint to Add Items
-// ---------------------------------------
-app.post('/pmaster', async (req, res) => {
-    try {
-        if (!db) {
-            return res.status(500).json({ error: 'Database not initialized.' });
-        }
-        
-        const {
-            itemcode,
-            itemname,
-            itemdesc,
-            itemused,
-            qty,
-            dtpur,
-            expiry,
-            avgcost,
-            minstock,
-            maxstock,
-            latestprice,
-            lowest,
-            highest
-        } = req.body;
-
-        // Insert the new item into pmaster
-        const sql = `
-            INSERT INTO pmaster (
-                itemcode, itemname, itemdesc, itemused, qty,
-                dtpur, expiry, avgcost, minstock, maxstock,
-                latestprice, lowest, highest
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `;
-        await db.run(sql, [
-            itemcode,
-            itemname,
-            itemdesc,
-            itemused,
-            qty,
-            dtpur,
-            expiry,
-            avgcost,
-            minstock,
-            maxstock,
-            latestprice,
-            lowest,
-            highest
-        ]);
-
-        res.status(200).json({ message: 'Item added successfully' });
-    } catch (error) {
-        console.error('Error adding item:', error);
-        res.status(500).json({ error: 'Failed to add item' });
-    }
-});
 // Server to add a route to /add-item
 app.get("/add-items", (req, res)=>{
     res.sendFile(directory+"/Add-Item/index.html");
 });
+// Server to add a route to /add-suppliers
+app.get("/add-suppliers", (req, res)=>{
+    res.sendFile(directory+"/Add-Suppliers/index.html");
+});
+
+// Server to add a route to /add-suppliers
+app.get("/add-customers", (req, res)=>{
+    res.sendFile(directory+"/Add-Customers/index.html");
+});
+
+
+// ---------------------------------------
+//        POST Endpoint to Add Supplier (Modified for 'suppliers' table with new columns)
+// ---------------------------------------
+app.post('/suppliers', async (req, res) => {
+    try {
+        if (!db) {
+            return res.status(500).json({ error: 'Database not initialized.' });
+        }
+
+        const {
+            suppliercode, // This will be used as supid in the 'suppliers' table
+            suppliername, // This will be used as supname in the 'suppliers' table
+            contactperson,
+            phone,
+            email,
+            address,
+            notes
+        } = req.body;
+
+        // Assuming you want to associate the supplier with a default itemcode (or handle itemcode differently)
+        // Since 'suppliers' table has itemcode as part of the primary key, you MUST provide an itemcode.
+        // If you are adding a general supplier and not linking it to a specific item yet, you might need to rethink
+        // how you want to handle the 'itemcode' in this context.
+        // For now, let's assume you are providing an 'itemcode' in the request body as well, or you have a default itemcode.
+
+        const itemcode = 'DEFAULT_ITEM_CODE'; // Replace 'DEFAULT_ITEM_CODE' with a suitable default or get it from req.body if needed.
+                                        // If you get it from req.body, add it to the frontend payload as well.
+
+        // Insert the new supplier into the 'suppliers' table
+        const sql = `
+            INSERT INTO suppliers (
+                itemcode, supid, supname, contactperson, phone, email, address, notes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `;
+        await db.run(sql, [
+            itemcode,         // Assuming a default or provided itemcode
+            suppliercode,   // Using suppliercode from form as supid
+            suppliername,
+            contactperson,
+            phone,
+            email,
+            address,
+            notes
+        ]);
+
+        res.status(200).json({ message: 'Supplier added successfully' });
+    } catch (error) {
+        console.error('Error adding supplier:', error);
+        res.status(500).json({ error: 'Failed to add supplier' });
+    }
+});
+
 
 // Start the server
 app.listen(port, () => {
