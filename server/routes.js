@@ -115,13 +115,13 @@ router.post('/add-item', async (req, res) => {
 });
 
 // ✅ API to list all items
-router.get('/items', async (req, res) => {
+router.get('/pmaster', async (req, res) => {
   try {
     const db = await openDB();
-    const items = await db.all('SELECT * FROM pmaster');
-    res.json(items);
+    const results = await db.all('SELECT * FROM pmaster');
+    res.json(results);
   } catch (error) {
-    console.error('Error in /items:', error);
+    console.error('Error in /pmaster:', error);
     res.status(500).json({ error: error.message });
   }
 });
