@@ -32,6 +32,9 @@ app.get('/additems', (req,res)=>{
 app.get('/add-items', (req,res)=>{
     res.sendFile(path.join(__dirname, '../client/Add-Items/index.html'));
 });
+app.get('/product', (req,res)=>{
+    res.sendFile(path.join(__dirname, '../client/Pmaster/index.html'));
+});
 
 // This just listens
 app.listen(PORT, () => {
