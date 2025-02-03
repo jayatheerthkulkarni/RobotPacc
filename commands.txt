@@ -1,0 +1,70 @@
+-- Drop existing tables if they exist
+DROP TABLE IF EXISTS outwards;
+DROP TABLE IF EXISTS indwards;
+DROP TABLE IF EXISTS customer;
+DROP TABLE IF EXISTS suppliers;
+DROP TABLE IF EXISTS pmaster;
+
+-- Create pmaster table
+CREATE TABLE pmaster (
+    itemcode VARCHAR(30) PRIMARY KEY,
+    itemname VARCHAR(100),
+    itemdesc TEXT,
+    itemused VARCHAR(45),
+    qty INT,
+    dtpur DATE,
+    expiry DATE,
+    avgcost INT,
+    minstock INT,
+    maxstock INT,
+    latestprice INT,
+    lowest INT,
+    highest INT
+);
+
+-- Create suppliers table with phone as primary key
+CREATE TABLE suppliers (
+    phone VARCHAR(20) PRIMARY KEY, 
+    itemcode VARCHAR(30),
+    supname VARCHAR(50), 
+    contactperson VARCHAR(100), 
+    email VARCHAR(100), 
+    address TEXT, 
+    notes TEXT,
+    FOREIGN KEY (itemcode) REFERENCES pmaster(itemcode)
+);
+
+-- Create customer table with phone as primary key
+CREATE TABLE customer (
+    phone VARCHAR(10) PRIMARY KEY,
+    cname VARCHAR(100)
+);
+
+-- Create indwards table referencing suppliers' phone
+CREATE TABLE indwards (
+    itemcode VARCHAR(30),
+    phone VARCHAR(20),
+    uuidin VARCHAR(30) PRIMARY KEY,
+    buildqty INT,
+    reciveqty INT,
+    acceptqty INT, 
+    rejectqty INT,
+    yearmanufactor INT,
+    FOREIGN KEY (itemcode) REFERENCES pmaster(itemcode),
+    FOREIGN KEY (phone) REFERENCES suppliers(phone)
+);
+
+-- Create outwards table referencing customers' phone
+CREATE TABLE outwards (
+    itemcode VARCHAR(30),
+    phone VARCHAR(10),
+    uuidout VARCHAR(30) PRIMARY KEY,
+    referece TEXT,
+    issueqty INT,
+    salevalue INT,
+    partsavgtot INT,
+    profits INT,
+    profitpercentage INT,
+    FOREIGN KEY (itemcode) REFERENCES pmaster(itemcode),
+    FOREIGN KEY (phone) REFERENCES customer(phone)
+);
