@@ -7,6 +7,7 @@ import {
 } from './db.js';
 import sqlite3 from 'sqlite3';
 import { open } from 'sqlite';
+import XLSX from 'xlsx'; // npm install xlsx
 
 const router = express.Router();
 
@@ -113,7 +114,7 @@ router.get('/expired-items', async (req, res) => {
 /* =========================================
  ✅ Supplier Management APIs 
  ========================================= */
- router.post('/add-supplier', async (req, res) => {
+router.post('/add-supplier', async (req, res) => {
   const { phone, itemcode, supname, contactperson, email, address, notes } = req.body;
 
   if (!phone || !supname || !contactperson || !email || !address || !itemcode) {
@@ -141,7 +142,6 @@ router.get('/expired-items', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-
 
 /* =========================================
  ✅ Customer Management APIs 
@@ -214,13 +214,11 @@ router.get('/search-item', async (req, res) => {
   }
 });
 
-// Example: /api/search-supplier
-// This searches the "suppliers" table by phone or name
+// Searches the "suppliers" table by phone or supname
 router.get('/search-supplier', async (req, res) => {
   const { query } = req.query;
   try {
     const db = await openDB();
-    // Search by phone or supname - adjust for your table schema
     const results = await db.all(
       `SELECT * FROM suppliers
        WHERE phone LIKE ? OR supname LIKE ?`,
@@ -229,6 +227,103 @@ router.get('/search-supplier', async (req, res) => {
     res.json(results);
   } catch (error) {
     console.error('Error in /search-supplier:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Searches the "customer" table by phone or cname
+router.get('/search-customer', async (req, res) => {
+  const { query } = req.query;
+  try {
+    const db = await openDB();
+    const results = await db.all(
+      `SELECT phone, cname
+         FROM customer
+        WHERE phone LIKE ? 
+           OR cname LIKE ?`,
+      [`%${query}%`, `%${query}%`]
+    );
+    res.json(results);
+  } catch (error) {
+    console.error('Error in /search-customer:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/* =========================================
+ ✅ Inwards Listing & Download APIs
+ ========================================= */
+// Endpoint to list inwards records
+router.get('/inwardsdata', async (req, res) => {
+  try {
+    const db = await openDB();
+    const data = await db.all('SELECT * FROM indwards');
+    res.json(data);
+  } catch (error) {
+    console.error('Error in /inwards:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Endpoint to download inwards records as an XLSX file
+router.get('/download-inwards', async (req, res) => {
+  try {
+    const db = await openDB();
+    const data = await db.all('SELECT * FROM indwards');
+
+    // Create a new workbook and convert JSON data to a worksheet
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(data);
+    XLSX.utils.book_append_sheet(wb, ws, 'Inwards');
+
+    // Write workbook to a buffer
+    const buffer = XLSX.write(wb, { bookType: 'xlsx', type: 'buffer' });
+
+    // Set headers for file download
+    res.setHeader('Content-Disposition', 'attachment; filename="inwards.xlsx"');
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.send(buffer);
+  } catch (error) {
+    console.error('Error in /download-inwards:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/* =========================================
+ ✅ Outwards Listing & Download APIs
+ ========================================= */
+// Endpoint to list outwards records
+router.get('/outwardsdata', async (req, res) => {
+  try {
+    const db = await openDB();
+    const data = await db.all('SELECT * FROM outwards');
+    res.json(data);
+  } catch (error) {
+    console.error('Error in /outwardsdata:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Endpoint to download outwards records as an XLSX file
+router.get('/download-outwards', async (req, res) => {
+  try {
+    const db = await openDB();
+    const data = await db.all('SELECT * FROM outwards');
+
+    // Create a new workbook and convert JSON data to a worksheet
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(data);
+    XLSX.utils.book_append_sheet(wb, ws, 'Outwards');
+
+    // Write workbook to a buffer
+    const buffer = XLSX.write(wb, { bookType: 'xlsx', type: 'buffer' });
+
+    // Set headers for file download
+    res.setHeader('Content-Disposition', 'attachment; filename="outwards.xlsx"');
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.send(buffer);
+  } catch (error) {
+    console.error('Error in /download-outwards:', error);
     res.status(500).json({ error: error.message });
   }
 });
