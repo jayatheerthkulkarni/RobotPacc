@@ -1,173 +1,148 @@
 <script>
     import Navigation from "./lib/Navigation.svelte";
+    import axios from "axios";
   
-    // Form fields for Customer
-    let customerid = "";
-    let customername = "";
-    let customernumber = "";
+    let phone = "";
+    let cname = "";
+    let successMessage = "";
+    let errorMessage = "";
+    let loading = false;
   
-    // Handle form submission
-    async function handleSubmit(event) {
-        event.preventDefault();
+    // Submit the customer data to the backend.
+    async function addCustomer() {
+      // Reset messages
+      errorMessage = "";
+      successMessage = "";
   
-        // Build the payload for customer data
-        const payload = {
-            customerid,
-            customername,
-            customernumber
-        };
+      // Validate that required fields are not empty
+      if (!phone || !cname) {
+        errorMessage = "❌ Please fill in all required fields.";
+        return;
+      }
   
-        try {
-            const response = await fetch("http://localhost:5000/customers", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload)
-            });
+      loading = true;
+      try {
+        // Send POST request to backend to add the customer
+        await axios.post("http://localhost:5000/api/add-customer", {
+          phone,
+          cname,
+        });
   
-            if (!response.ok) {
-                console.error("Server responded with an error:", response.status);
-                return;
-            }
+        successMessage = "✅ Customer added successfully!";
   
-            const data = await response.json();
-            console.log("Customer added successfully:", data);
-  
-            // Simple feedback or reset form fields
-            alert("Customer added successfully!");
-            customerid = "";
-            customername = "";
-            customernumber = "";
-  
-        } catch (err) {
-            console.error("Error adding customer:", err);
-        }
+        // Reset form fields after successful add
+        phone = "";
+        cname = "";
+      } catch (error) {
+        console.error("Error adding customer:", error);
+        errorMessage = error.response?.data?.error || "❌ Failed to add customer.";
+      }
+      loading = false;
     }
   </script>
   
-  <svelte:head>
-    <title>Add New Customer</title>
-    <style>
-        /* General Styles */
-        body {
-            font-family: system-ui, sans-serif;
-            background-color: #f4f4f8;
-            color: #333;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-  
-        h1 {
-            color: #3498db;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-  
-        /* Form Styles */
-        form {
-            background-color: white;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
-            width: 80%;
-            max-width: 700px;
-            margin-bottom: 30px;
-        }
-  
-        @media (max-width: 768px) {
-            form {
-                width: 95%;
-                padding: 20px;
-            }
-        }
-  
-        div {
-            margin-bottom: 20px;
-            display: flex;
-            flex-direction: column;
-        }
-  
-        label {
-            font-weight: bold;
-            margin-bottom: 8px;
-            color: #555;
-        }
-  
-        input[type="text"],
-        input[type="number"],
-        input[type="date"],
-        input[type="email"],
-        textarea {
-            padding: 12px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 16px;
-            margin-bottom: 8px;
-            color: #333;
-            box-sizing: border-box;
-        }
-  
-        input[type="text"]:focus,
-        input[type="number"]:focus,
-        input[type="date"]:focus,
-        input[type="email"]:focus,
-        textarea:focus {
-            border-color: #3498db;
-            box-shadow: 0 0 5px rgba(52, 152, 219, 0.5);
-            outline: none;
-        }
-  
-        button[type="submit"] {
-            background-color: #3498db;
-            color: white;
-            padding: 14px 20px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 18px;
-            transition: background-color 0.3s ease;
-        }
-  
-        button[type="submit"]:hover {
-            background-color: #2980b9;
-        }
-    </style>
-  </svelte:head>
-  
-  <!-- Navigation component -->
   <Navigation />
   
-  <h1>Add New Customer</h1>
+  <div class="form-container">
+    <h2>Add Customer</h2>
   
-  <form on:submit|preventDefault={handleSubmit}>
-    <div>
-        <label for="customerid">Customer ID:</label>
-        <input
-            id="customerid"
-            bind:value={customerid}
-            type="text"
-            required
-        />
-    </div>
-    <div>
-        <label for="customername">Customer Name:</label>
-        <input
-            id="customername"
-            bind:value={customername}
-            type="text"
-            required
-        />
-    </div>
-    <div>
-        <label for="customernumber">Phone Number:</label>
-        <input
-            id="customernumber"
-            bind:value={customernumber}
-            type="text"
-        />
-    </div>
+    {#if errorMessage}
+      <div class="message error">{errorMessage}</div>
+    {/if}
+    {#if successMessage}
+      <div class="message success">{successMessage}</div>
+    {/if}
   
-    <button type="submit">Add Customer</button>
-  </form>
+    <form on:submit|preventDefault={addCustomer}>
+      <div class="input-group">
+        <input type="tel" bind:value={phone} placeholder="Phone Number *" required />
+        <input type="text" bind:value={cname} placeholder="Customer Name *" required />
+      </div>
+  
+      <button type="submit" class="submit-btn" disabled={loading}>
+        {loading ? "Adding..." : "Add Customer"}
+      </button>
+    </form>
+  </div>
+  
+  <style>
+    .form-container {
+      width: 90%;
+      max-width: 600px;
+      margin: 5% auto;
+      padding: 2rem;
+      border-radius: 12px;
+      background: #ffffff;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      position: relative;
+    }
+  
+    h2 {
+      text-align: center;
+      color: #2c3e50;
+      margin-bottom: 1.5rem;
+    }
+  
+    .message {
+      text-align: center;
+      padding: 0.8rem;
+      border-radius: 8px;
+      font-weight: 500;
+      margin-bottom: 1rem;
+    }
+  
+    .success {
+      background: #2ecc71;
+      color: white;
+    }
+  
+    .error {
+      background: #e74c3c;
+      color: white;
+    }
+  
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+  
+    .input-group {
+      display: flex;
+      gap: 1rem;
+    }
+  
+    input {
+      width: 100%;
+      padding: 0.8rem;
+      border-radius: 8px;
+      border: 1px solid #dcdde1;
+      font-size: 1rem;
+      transition: all 0.3s ease;
+    }
+  
+    input:focus {
+      border-color: #3498db;
+      outline: none;
+      box-shadow: 0 0 5px rgba(52, 152, 219, 0.4);
+    }
+  
+    .submit-btn {
+      width: 100%;
+      padding: 1rem;
+      border: none;
+      border-radius: 8px;
+      background: #3498db;
+      color: white;
+      font-size: 1.2rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+  
+    .submit-btn:hover {
+      background: #2980b9;
+      box-shadow: 0 4px 15px rgba(52, 152, 219, 0.4);
+    }
+  </style>
+  

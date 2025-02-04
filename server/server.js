@@ -35,7 +35,12 @@ app.get('/add-items', (req,res)=>{
 app.get('/product', (req,res)=>{
     res.sendFile(path.join(__dirname, '../client/Pmaster/index.html'));
 });
-
+app.get('/add-suppliers', (req,res)=>{
+    res.sendFile(path.join(__dirname, '../client/Add-Suppliers/index.html'));
+});
+app.get('/add-customers', (req,res)=>{
+    res.sendFile(path.join(__dirname, '../client/Add-Customers/index.html'));
+});
 // This just listens
 app.listen(PORT, () => {
     console.log(`🚀 Server running at http://localhost:${PORT}`);
