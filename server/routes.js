@@ -452,5 +452,185 @@ router.get('/outwardsdata', async (req, res) => {
   }
 });
 
+router.patch('/update-quantity', async (req, res) => {
+  const { itemcode, qty } = req.body;
+
+  if (!itemcode || qty === undefined) {
+    return res.status(400).json({ error: "Missing item code or quantity" });
+  }
+
+  try {
+    const db = await openDB();
+
+    await db.run("UPDATE pmaster SET qty = ? WHERE itemcode = ?", [qty, itemcode]);
+
+    res.json({ message: "Quantity updated successfully" });
+  } catch (error) {
+    console.error('Error in /update-quantity:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.delete('/delete-item/:itemcode', async (req, res) => {
+  const { itemcode } = req.params;
+
+  try {
+    const db = await openDB();
+    await db.run("DELETE FROM pmaster WHERE itemcode = ?", [itemcode]);
+
+    res.json({ message: "Item deleted successfully" });
+  } catch (error) {
+    console.error('Error in /delete-item:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/item/:itemcode', async (req, res) => {
+  const { itemcode } = req.params;
+
+  try {
+    const db = await openDB();
+    const item = await db.get("SELECT * FROM pmaster WHERE itemcode = ?", [itemcode]);
+
+    if (!item) {
+      return res.status(404).json({ error: "Item not found" });
+    }
+
+    res.json(item);
+  } catch (error) {
+    console.error('Error in /item:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/customers', async (req, res) => {
+  try {
+    const db = await openDB();
+    const customers = await db.all("SELECT * FROM customer");
+
+    res.json(customers);
+  } catch (error) {
+    console.error('Error in /customers:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+
+router.get('/suppliers', async (req, res) => {
+  try {
+    const db = await openDB();
+    const suppliers = await db.all("SELECT * FROM suppliers");
+
+    res.json(suppliers);
+  } catch (error) {
+    console.error('Error in /suppliers:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.delete('/delete-customer/:phone', async (req, res) => {
+  const { phone } = req.params;
+
+  try {
+    const db = await openDB();
+    await db.run("DELETE FROM customer WHERE phone = ?", [phone]);
+
+    res.json({ message: "Customer deleted successfully" });
+  } catch (error) {
+    console.error('Error in /delete-customer:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.delete('/delete-supplier/:phone', async (req, res) => {
+  const { phone } = req.params;
+
+  try {
+    const db = await openDB();
+    await db.run("DELETE FROM suppliers WHERE phone = ?", [phone]);
+
+    res.json({ message: "Supplier deleted successfully" });
+  } catch (error) {
+    console.error('Error in /delete-supplier:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete an inwards record by uuidin
+router.delete('/delete-inward/:uuidin', async (req, res) => {
+  const { uuidin } = req.params;
+  
+  try {
+    const db = await openDB();
+    await db.run('DELETE FROM indwards WHERE uuidin = ?', [uuidin]);
+    res.json({ message: "Inward record deleted successfully" });
+  } catch (error) {
+    console.error('Error in /delete-inward:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.patch('/update-inward/:uuidin', async (req, res) => {
+  const { uuidin } = req.params;
+  const { buildqty, reciveqty, acceptqty, rejectqty } = req.body;
+  try {
+    const db = await openDB();
+    await db.run(
+      `UPDATE indwards 
+       SET buildqty = ?, reciveqty = ?, acceptqty = ?, rejectqty = ?
+       WHERE uuidin = ?`,
+      [buildqty, reciveqty, acceptqty, rejectqty, uuidin]
+    );
+    res.json({ message: "Inwards record updated successfully" });
+  } catch (error) {
+    console.error("Error in /update-inward:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.delete('/delete-inward/:uuidin', async (req, res) => {
+  const { uuidin } = req.params;
+  try {
+    const db = await openDB();
+    await db.run('DELETE FROM indwards WHERE uuidin = ?', [uuidin]);
+    res.json({ message: "Inwards record deleted successfully" });
+  } catch (error) {
+    console.error('Error in /delete-inward:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+
+router.patch('/update-outward/:uuidout', async (req, res) => {
+  const { uuidout } = req.params;
+  const { issueqty, salevalue, partsavgtot, profits, profitpercentage } = req.body;
+  try {
+    const db = await openDB();
+    await db.run(
+      `UPDATE outwards 
+       SET issueqty = ?, salevalue = ?, partsavgtot = ?, profits = ?, profitpercentage = ?
+       WHERE uuidout = ?`,
+      [issueqty, salevalue, partsavgtot, profits, profitpercentage, uuidout]
+    );
+    res.json({ message: "Outwards record updated successfully" });
+  } catch (error) {
+    console.error("Error in /update-outward:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.delete('/delete-outward/:uuidout', async (req, res) => {
+  const { uuidout } = req.params;
+  try {
+    const db = await openDB();
+    await db.run("DELETE FROM outwards WHERE uuidout = ?", [uuidout]);
+    res.json({ message: "Outwards record deleted successfully" });
+  } catch (error) {
+    console.error("Error in /delete-outward:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+
 
 export default router;
