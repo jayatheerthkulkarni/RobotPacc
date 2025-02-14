@@ -2,86 +2,65 @@
   import Navigation from "./lib/Navigation.svelte";
   import axios from "axios";
 
+  // ✅ All fields from the database included
   let itemcode = "";
-  let itemname = "";
-  let itemdesc = "";
-  let itemused = "";
-  let qty = "";
-  let dtpur = "";
-  let expiry = "";
-  let avgcost = "";
-  let minstock = "";
-  let maxstock = "";
-  let latestprice = "";
-  let lowest = "";
-  let highest = "";
+  let phone = "";
+  let uuidin = "";
+  let buildqty = "";       // ✅ Added this (MISSING)
+  let reciveqty = "";
+  let acceptqty = "";
+  let rejectqty = "";      // ✅ Added this (MISSING)
+  let yearmanufactor = "";
+
   let message = "";
   let error = "";
 
-  async function addItem() {
+  async function addInward() {
     message = "";
     error = "";
 
-    if (
-      !itemcode.trim() ||
-      !itemname.trim() ||
-      !qty ||
-      !dtpur ||
-      !expiry ||
-      !avgcost
-    ) {
+    // ✅ Check if all required fields are filled
+    if (!itemcode.trim() || !phone.trim() || !uuidin.trim() || !buildqty || !reciveqty || !acceptqty || !rejectqty || !yearmanufactor) {
       error = "Please fill in all required fields.";
       return;
     }
 
     try {
-      const response = await axios.post("http://localhost:5000/api/add-item", {
+      const response = await axios.post("http://localhost:5000/api/add-inward", {
         itemcode,
-        itemname,
-        itemdesc,
-        itemused,
-        qty: Number(qty),
-        dtpur,
-        expiry,
-        avgcost: Number(avgcost),
-        minstock: Number(minstock) || 0,
-        maxstock: Number(maxstock) || 0,
-        latestprice: Number(latestprice) || 0,
-        lowest: Number(lowest) || 0,
-        highest: Number(highest) || 0,
+        phone,
+        uuidin,
+        buildqty: Number(buildqty),   // ✅ Ensure it's a number
+        reciveqty: Number(reciveqty),
+        acceptqty: Number(acceptqty),
+        rejectqty: Number(rejectqty), // ✅ Ensure it's a number
+        yearmanufactor: Number(yearmanufactor),
       });
 
-      message = "✅ Item added successfully!";
+      message = "✅ Inward entry added successfully!";
       resetForm();
     } catch (err) {
       console.error("API Error:", err);
-      error =
-        err.response?.data?.error ||
-        "❌ Failed to add item. Check API connection.";
+      error = err.response?.data?.error || "❌ Failed to add inward entry. Check API connection.";
     }
   }
 
   function resetForm() {
     itemcode = "";
-    itemname = "";
-    itemdesc = "";
-    itemused = "";
-    qty = "";
-    dtpur = "";
-    expiry = "";
-    avgcost = "";
-    minstock = "";
-    maxstock = "";
-    latestprice = "";
-    lowest = "";
-    highest = "";
+    phone = "";
+    uuidin = "";
+    buildqty = "";
+    reciveqty = "";
+    acceptqty = "";
+    rejectqty = "";
+    yearmanufactor = "";
   }
 </script>
 
 <Navigation />
 
 <div class="form-container">
-  <h2>Add New Item</h2>
+  <h2>Add Inward Entry</h2>
 
   {#if message}
     <p class="message success">{message}</p>
@@ -90,7 +69,7 @@
     <p class="message error">{error}</p>
   {/if}
 
-  <form on:submit|preventDefault={addItem}>
+  <form on:submit|preventDefault={addInward}>
     <div class="grid">
       <div class="input-group">
         <label for="itemcode">Item Code *</label>
@@ -98,67 +77,42 @@
       </div>
 
       <div class="input-group">
-        <label for="itemname">Item Name *</label>
-        <input id="itemname" type="text" bind:value={itemname} required />
+        <label for="phone">Supplier Phone *</label>
+        <input id="phone" type="text" bind:value={phone} required />
       </div>
 
       <div class="input-group">
-        <label for="itemdesc">Item Description</label>
-        <input id="itemdesc" type="text" bind:value={itemdesc} />
+        <label for="uuidin">UUID (Unique ID) *</label>
+        <input id="uuidin" type="text" bind:value={uuidin} required />
       </div>
 
       <div class="input-group">
-        <label for="itemused">Usage Type</label>
-        <input id="itemused" type="text" bind:value={itemused} />
+        <label for="buildqty">Build Quantity *</label>
+        <input id="buildqty" type="number" bind:value={buildqty} required />
       </div>
 
       <div class="input-group">
-        <label for="qty">Quantity *</label>
-        <input id="qty" type="number" bind:value={qty} required />
+        <label for="reciveqty">Received Quantity *</label>
+        <input id="reciveqty" type="number" bind:value={reciveqty} required />
       </div>
 
       <div class="input-group">
-        <label for="dtpur">Purchase Date *</label>
-        <input id="dtpur" type="date" bind:value={dtpur} required />
+        <label for="acceptqty">Accepted Quantity *</label>
+        <input id="acceptqty" type="number" bind:value={acceptqty} required />
       </div>
 
       <div class="input-group">
-        <label for="expiry">Expiry Date *</label>
-        <input id="expiry" type="date" bind:value={expiry} required />
+        <label for="rejectqty">Rejected Quantity *</label>
+        <input id="rejectqty" type="number" bind:value={rejectqty} required />
       </div>
 
       <div class="input-group">
-        <label for="avgcost">Average Cost *</label>
-        <input id="avgcost" type="number" bind:value={avgcost} required />
-      </div>
-
-      <div class="input-group">
-        <label for="minstock">Min Stock</label>
-        <input id="minstock" type="number" bind:value={minstock} />
-      </div>
-
-      <div class="input-group">
-        <label for="maxstock">Max Stock</label>
-        <input id="maxstock" type="number" bind:value={maxstock} />
-      </div>
-
-      <div class="input-group">
-        <label for="latestprice">Latest Price</label>
-        <input id="latestprice" type="number" bind:value={latestprice} />
-      </div>
-
-      <div class="input-group">
-        <label for="lowest">Lowest Price</label>
-        <input id="lowest" type="number" bind:value={lowest} />
-      </div>
-
-      <div class="input-group">
-        <label for="highest">Highest Price</label>
-        <input id="highest" type="number" bind:value={highest} />
+        <label for="yearmanufactor">Year of Manufacture *</label>
+        <input id="yearmanufactor" type="number" bind:value={yearmanufactor} required />
       </div>
     </div>
 
-    <button type="submit" class="submit-btn">Add Item</button>
+    <button type="submit" class="submit-btn">Add Inward Entry</button>
   </form>
 </div>
 

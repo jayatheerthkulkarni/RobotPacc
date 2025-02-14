@@ -42,10 +42,10 @@ app.get('/add-customers', (req,res)=>{
     res.sendFile(path.join(__dirname, '../client/Add-Customers/index.html'));
 });
 app.get('/inward', (req,res)=>{
-    res.sendFile(path.join(__dirname, '../client/Inwards/index.html'));
+    res.sendFile(path.join(__dirname, '../client/Add-Inwards/index.html'));
 });
 app.get('/outward', (req,res)=>{
-    res.sendFile(path.join(__dirname, '../client/Outwards/index.html'));
+    res.sendFile(path.join(__dirname, '../client/Add-Outwards/index.html'));
 });
 
 app.get('/inwards', (req,res)=>{
@@ -55,6 +55,11 @@ app.get('/inwards', (req,res)=>{
 app.get('/outwards', (req,res)=>{
     res.sendFile(path.join(__dirname, '../client/Outward/index.html'));
 });
+
+app.get('/removeitems', (req,res)=>{
+    res.sendFile(path.join(__dirname, '../client/RemoveItems/index.html'));
+});
+
 // This just listens
 app.listen(PORT, () => {
     console.log(`🚀 Server running at http://localhost:${PORT}`);

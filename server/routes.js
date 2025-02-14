@@ -166,14 +166,27 @@ router.post('/add-customer', async (req, res) => {
 /* =========================================
  ✅ Inwards & Outwards Transactions APIs 
  ========================================= */
-router.post('/add-inward', async (req, res) => {
-  const { itemcode, phone, uuidin, reciveqty, acceptqty } = req.body;
+ router.post('/add-inward', async (req, res) => {
+  const { 
+    itemcode, 
+    phone, 
+    uuidin, 
+    buildqty,      // <-- add these!
+    reciveqty, 
+    acceptqty, 
+    rejectqty,     // <-- add these!
+    yearmanufactor // <-- add these!
+  } = req.body;
 
   try {
     const db = await openDB();
-    await db.run(`INSERT INTO indwards (itemcode, phone, uuidin, reciveqty, acceptqty) 
-                  VALUES (?, ?, ?, ?, ?)`, 
-                  [itemcode, phone, uuidin, reciveqty, acceptqty]);
+    // Insert all 8 columns
+    await db.run(
+      `INSERT INTO indwards (
+         itemcode, phone, uuidin, buildqty, reciveqty, acceptqty, rejectqty, yearmanufactor
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [ itemcode, phone, uuidin, buildqty, reciveqty, acceptqty, rejectqty, yearmanufactor ]
+    );
 
     res.status(201).json({ message: "Stock received successfully" });
   } catch (error) {
@@ -183,14 +196,38 @@ router.post('/add-inward', async (req, res) => {
 });
 
 router.post('/add-outward', async (req, res) => {
-  const { itemcode, phone, uuidout, issueqty, salevalue } = req.body;
+  const { 
+    itemcode, 
+    phone, 
+    uuidout, 
+    referece,         // <-- newly added
+    issueqty, 
+    salevalue, 
+    partsavgtot,      // <-- newly added
+    profits,          // <-- newly added
+    profitpercentage  // <-- newly added
+  } = req.body;
 
   try {
     const db = await openDB();
-    await db.run(`INSERT INTO outwards (itemcode, phone, uuidout, issueqty, salevalue) 
-                  VALUES (?, ?, ?, ?, ?)`, 
-                  [itemcode, phone, uuidout, issueqty, salevalue]);
-
+    // Insert ALL 9 columns
+    await db.run(
+      `INSERT INTO outwards (
+         itemcode, phone, uuidout, referece, issueqty, 
+         salevalue, partsavgtot, profits, profitpercentage
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        itemcode, 
+        phone, 
+        uuidout, 
+        referece, 
+        issueqty, 
+        salevalue, 
+        partsavgtot, 
+        profits, 
+        profitpercentage
+      ]
+    );
     res.status(201).json({ message: "Stock issued successfully" });
   } catch (error) {
     console.error('Error in /add-outward:', error);
@@ -264,27 +301,138 @@ router.get('/inwardsdata', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-
-// Endpoint to download inwards records as an XLSX file
 router.get('/download-inwards', async (req, res) => {
   try {
     const db = await openDB();
-    const data = await db.all('SELECT * FROM indwards');
+    let data = await db.all('SELECT * FROM indwards');
 
-    // Create a new workbook and convert JSON data to a worksheet
+    // ✅ Debug Log to check before cleaning
+    console.log("Raw Data from DB:", data);
+
+    // ✅ Remove rows with missing required values
+    data = data.filter(row => row.itemcode && row.phone && row.uuidin);
+
+    // ✅ Ensure all fields exist and are properly formatted
+    data = data.map(row => ({
+      itemcode: row.itemcode || "",  // Ensuring no undefined
+      phone: row.phone || "",
+      uuidin: row.uuidin || "",
+      buildqty: Number(row.buildqty) || 0,
+      reciveqty: Number(row.reciveqty) || 0,
+      acceptqty: Number(row.acceptqty) || 0,
+      rejectqty: Number(row.rejectqty) || 0,
+      yearmanufactor: Number(row.yearmanufactor) || 0,
+    }));
+
+    // ✅ Debug Log after cleaning
+    console.log("Cleaned Data for Excel:", data);
+
+    // ✅ Force column order to prevent extra columns
+    const columns = [
+      "itemcode",
+      "phone",
+      "uuidin",
+      "buildqty",
+      "reciveqty",
+      "acceptqty",
+      "rejectqty",
+      "yearmanufactor"
+    ];
+
+    const formattedData = data.map(row => columns.map(col => row[col]));
+
+    // ✅ Debug Log final data
+    console.log("Final Excel Data:", formattedData);
+
+    // ✅ Create an Excel workbook and sheet
     const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.json_to_sheet(data);
-    XLSX.utils.book_append_sheet(wb, ws, 'Inwards');
+    const ws = XLSX.utils.aoa_to_sheet([
+      ["Item Code", "Supplier Phone", "UUID", "Build Quantity", "Received Quantity", "Accepted Quantity", "Rejected Quantity", "Year of Manufacture"], 
+      ...formattedData
+    ]);
 
-    // Write workbook to a buffer
+    XLSX.utils.book_append_sheet(wb, ws, "Inwards");
+
+    // ✅ Write workbook to a buffer
     const buffer = XLSX.write(wb, { bookType: 'xlsx', type: 'buffer' });
 
-    // Set headers for file download
+    // ✅ Set headers and send response
     res.setHeader('Content-Disposition', 'attachment; filename="inwards.xlsx"');
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.send(buffer);
+
   } catch (error) {
     console.error('Error in /download-inwards:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/* ✅ FIXED: Download Outwards as Excel */
+router.get('/download-outwards', async (req, res) => {
+  try {
+    const db = await openDB();
+    let data = await db.all('SELECT * FROM outwards');
+
+    // 1️⃣ Filter out incomplete rows (e.g., missing itemcode, phone, or uuidout)
+    data = data.filter(row => row.itemcode && row.phone && row.uuidout);
+
+    // 2️⃣ Clean + ensure numeric fields
+    //    Convert undefined to 0 for numeric columns
+    data = data.map(row => ({
+      itemcode:          row.itemcode         || "",
+      phone:             row.phone            || "",
+      uuidout:           row.uuidout          || "",
+      referece:          row.referece         || "",   // TEXT column
+      issueqty:          Number(row.issueqty) || 0,
+      salevalue:         Number(row.salevalue) || 0,
+      partsavgtot:       Number(row.partsavgtot) || 0,
+      profits:           Number(row.profits) || 0,
+      profitpercentage:  Number(row.profitpercentage) || 0,
+    }));
+
+    // 3️⃣ Force a consistent column order
+    const columns = [
+      "itemcode",
+      "phone",
+      "uuidout",
+      "referece",
+      "issueqty",
+      "salevalue",
+      "partsavgtot",
+      "profits",
+      "profitpercentage"
+    ];
+
+    // 4️⃣ Convert data into a 2D array
+    const formattedData = data.map(row => columns.map(col => row[col]));
+
+    // 5️⃣ Build an Excel sheet
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet([
+      [
+        "Item Code",
+        "Customer Phone",
+        "UUID (Out)",
+        "Referece",
+        "Issued Quantity",
+        "Sale Value",
+        "Parts Average Total",
+        "Profits",
+        "Profit Percentage"
+      ],
+      ...formattedData,
+    ]);
+
+    XLSX.utils.book_append_sheet(wb, ws, "Outwards");
+
+    // 6️⃣ Write workbook to buffer & send to client
+    const buffer = XLSX.write(wb, { bookType: 'xlsx', type: 'buffer' });
+    res.setHeader('Content-Disposition', 'attachment; filename="outwards.xlsx"');
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.send(buffer);
+
+  } catch (error) {
+    console.error('Error in /download-outwards:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -304,28 +452,5 @@ router.get('/outwardsdata', async (req, res) => {
   }
 });
 
-// Endpoint to download outwards records as an XLSX file
-router.get('/download-outwards', async (req, res) => {
-  try {
-    const db = await openDB();
-    const data = await db.all('SELECT * FROM outwards');
-
-    // Create a new workbook and convert JSON data to a worksheet
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.json_to_sheet(data);
-    XLSX.utils.book_append_sheet(wb, ws, 'Outwards');
-
-    // Write workbook to a buffer
-    const buffer = XLSX.write(wb, { bookType: 'xlsx', type: 'buffer' });
-
-    // Set headers for file download
-    res.setHeader('Content-Disposition', 'attachment; filename="outwards.xlsx"');
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.send(buffer);
-  } catch (error) {
-    console.error('Error in /download-outwards:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
 
 export default router;
