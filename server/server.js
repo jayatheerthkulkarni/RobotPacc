@@ -24,60 +24,32 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '../client/Home/index.html'));
 });
 
-// Add Items menu route
-app.get('/additems', (req,res)=>{
-    res.sendFile(path.join(__dirname, '../client/AddItems/index.html'));
-});
-// Add Items Items route 
-app.get('/add-items', (req,res)=>{
-    res.sendFile(path.join(__dirname, '../client/Add-Items/index.html'));
-});
 app.get('/product', (req,res)=>{
     res.sendFile(path.join(__dirname, '../client/Pmaster/index.html'));
 });
-app.get('/add-suppliers', (req,res)=>{
-    res.sendFile(path.join(__dirname, '../client/Add-Suppliers/index.html'));
+
+app.get('/product/additems', (req,res)=>{
+    res.sendFile(path.join(__dirname, '../client/AddItems/index.html'));
 });
-app.get('/add-customers', (req,res)=>{
-    res.sendFile(path.join(__dirname, '../client/Add-Customers/index.html'));
+
+app.get('/suppliers', (req,res)=>{
+    res.sendFile(path.join(__dirname, '../client/Suppliers/index.html'));
 });
-app.get('/inward', (req,res)=>{
-    res.sendFile(path.join(__dirname, '../client/Add-Inwards/index.html'));
+
+app.get('/customers', (req,res)=>{
+    res.sendFile(path.join(__dirname, '../client/Customer/index.html'));
 });
-app.get('/outward', (req,res)=>{
-    res.sendFile(path.join(__dirname, '../client/Add-Outwards/index.html'));
+
+app.get('/customers/add-customer', (req,res)=>{
+    res.sendFile(path.join(__dirname, '../client/AddCust/index.html'));
 });
 
 app.get('/inwards', (req,res)=>{
-    res.sendFile(path.join(__dirname, '../client/Inward/index.html'));
+    res.sendFile(path.join(__dirname, '../client/Inwards/index.html'));
 });
 
-app.get('/outwards', (req,res)=>{
-    res.sendFile(path.join(__dirname, '../client/Outward/index.html'));
-});
-
-app.get('/removeitems', (req,res)=>{
-    res.sendFile(path.join(__dirname, '../client/RemoveItems/index.html'));
-});
-
-app.get('/remove-items', (req,res)=>{
-    res.sendFile(path.join(__dirname, '../client/Rm-Items/index.html'));
-});
-
-app.get('/remove-suppliers', (req,res)=>{
-    res.sendFile(path.join(__dirname, '../client/Rm-Suppliers/index.html'));
-});
-
-app.get('/remove-customers', (req,res)=>{
-    res.sendFile(path.join(__dirname, '../client/Rm-Cust/index.html'));
-});
-
-app.get('/remove-inwards', (req,res)=>{
-    res.sendFile(path.join(__dirname, '../client/Rm-Inwards/index.html'));
-});
-
-app.get('/remove-outwards', (req,res)=>{
-    res.sendFile(path.join(__dirname, '../client/Rm-Out/index.html'));
+app.get('/inwards/add-inwards', (req,res)=>{
+    res.sendFile(path.join(__dirname, '../client/AddInwards/index.html'));
 });
 
 // This just listens

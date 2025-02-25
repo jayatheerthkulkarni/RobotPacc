@@ -1,7 +1,8 @@
 <script>
   import Navigation from "./lib/Navigation.svelte";
   import axios from "axios";
-  import { debounce } from "lodash"; // Using Lodash's debounce function
+  import { onMount } from "svelte";
+  import { tick } from 'svelte'; // Import tick for forced updates
 
   // Supplier form fields
   let supname = "";
@@ -9,98 +10,87 @@
   let phone = "";
   let email = "";
   let address = "";
-  let itemcode = ""; // Actual item code to send to backend
+  let selectedItemCode = "";
   let notes = "";
 
   // UI state fields
-  let searchQuery = "";
-  let suggestions = [];
   let successMessage = "";
   let errorMessage = "";
   let loading = false;
-  let itemValid = false; // Flag to mark that a valid item was chosen
+  let items = [];
 
-  // Debounced function to search for items based on the user's query.
-  const searchItems = debounce(async (query) => {
-    // If no query, clear suggestions.
-    if (!query) {
-      suggestions = [];
-      return;
-    }
+  async function fetchAllItems() {
     try {
-      // URL encode the query to prevent issues with special characters.
-      const response = await axios.get(
-        `http://localhost:5000/api/search-item?query=${encodeURIComponent(query)}`
-      );
-      suggestions = response.data;
+      const response = await axios.get("http://localhost:5000/api/items");
+      items = response.data;
     } catch (error) {
-      console.error("Error fetching item suggestions:", error);
-      errorMessage = "❌ Error fetching item suggestions.";
+      console.error("Error fetching items:", error);
+      errorMessage = "❌ Error fetching items for dropdown.";
     }
-  }, 300);
-
-  // When the searchQuery changes, invoke the debounced search.
-  $: searchItems(searchQuery);
-
-  // When a suggestion is clicked, set the itemcode and mark it valid.
-  function selectItem(item) {
-    itemcode = item.itemcode;
-    searchQuery = `${item.itemcode} - ${item.itemname}`;
-    suggestions = [];
-    itemValid = true;
   }
 
-  // Submit the supplier form.
+  onMount(async () => { // Make onMount async
+    await fetchAllItems(); // Wait for items to load
+  });
+
   async function addSupplier() {
-    // Reset messages
     errorMessage = "";
     successMessage = "";
 
-    // Trim and validate required fields
     if (
       !supname.trim() ||
       !contactperson.trim() ||
       !phone.trim() ||
       !email.trim() ||
-      !address.trim() ||
-      !itemcode.trim()
+      !address.trim()
     ) {
       errorMessage = "❌ Please fill in all required fields.";
       return;
     }
 
-    // Ensure that the user has selected an item from the suggestions.
-    if (!itemValid) {
-      errorMessage = "❌ Please select a valid item from the suggestions.";
+    //*** NEW CODE HERE ***/
+
+    const phoneInput = document.getElementById('phone'); //Get Value from input directly
+    const phoneValue = phoneInput ? phoneInput.value : ''; //Get Value from input directly
+
+    // Phone number validation
+    const phoneRegex = /^[0-9]{10}$/;
+    const trimmedPhone = phoneValue.trim(); // Trim the value just retrieved from the input
+
+    console.log("Phone Number:", trimmedPhone); // Debugging
+    console.log("Regex Test:", phoneRegex.test(trimmedPhone)); // Debugging
+
+    if (!phoneRegex.test(trimmedPhone)) {
+      errorMessage = "❌ Please enter a valid 10-digit phone number (numbers only).";
+      return;
+    }
+
+    if (!selectedItemCode) {
+      errorMessage = "❌ Please select an item from the list.";
       return;
     }
 
     loading = true;
     try {
-      // Post the supplier data to the backend.
       await axios.post("http://localhost:5000/api/add-supplier", {
         supname: supname.trim(),
         contactperson: contactperson.trim(),
-        phone: phone.trim(),
+        phone: trimmedPhone, //Use the value from the input box
         email: email.trim(),
         address: address.trim(),
-        itemcode: itemcode.trim(),
+        itemcode: selectedItemCode.trim(),
         notes: notes.trim(),
       });
 
       successMessage = "✅ Supplier added successfully!";
-      
-      // Reset form fields after a successful add.
+
       supname = "";
       contactperson = "";
       phone = "";
       email = "";
       address = "";
-      itemcode = "";
+      selectedItemCode = "";
       notes = "";
-      searchQuery = "";
-      suggestions = [];
-      itemValid = false;
     } catch (error) {
       console.error("Error adding supplier:", error);
       errorMessage = error.response?.data?.error || "❌ Failed to add supplier.";
@@ -122,39 +112,67 @@
   {/if}
 
   <form on:submit|preventDefault={addSupplier}>
-    <div class="input-group">
-      <input type="text" bind:value={supname} placeholder="Supplier Name *" required />
-      <input type="text" bind:value={contactperson} placeholder="Contact Person *" required />
+    <div class="form-row">
+      <div class="form-group">
+        <label for="supname">Supplier Name <span class="required">*</span></label>
+        <input
+          type="text"
+          id="supname"
+          bind:value={supname}
+          placeholder="Supplier Name"
+          required
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="contactperson">Contact Person <span class="required">*</span></label>
+        <input
+          type="text"
+          id="contactperson"
+          bind:value={contactperson}
+          placeholder="Contact Person"
+          required
+        />
+      </div>
     </div>
 
-    <div class="input-group">
-      <input type="tel" bind:value={phone} placeholder="Phone Number *" required />
-      <input type="email" bind:value={email} placeholder="Email *" required />
+    <div class="form-row">
+      <div class="form-group">
+        <label for="phone">Phone Number <span class="required">*</span></label>
+        <input
+          type="tel"
+          id="phone"
+          bind:value={phone}
+          placeholder="Phone Number"
+          required
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="email">Email <span class="required">*</span></label>
+        <input type="email" id="email" bind:value={email} placeholder="Email" required />
+      </div>
     </div>
 
-    <input type="text" bind:value={address} placeholder="Address *" required />
-
-    <!-- Live Item Search Input -->
-    <div class="item-search">
-      <input
-        type="text"
-        bind:value={searchQuery}
-        placeholder="Search Item Code or Name"
-        autocomplete="off"
-      />
-      {#if suggestions.length > 0}
-        <ul class="suggestions">
-          {#each suggestions as item}
-            <li on:click={() => selectItem(item)}>
-              {item.itemcode} - {item.itemname}
-            </li>
-          {/each}
-        </ul>
-      {/if}
+    <div class="form-group">
+      <label for="address">Address <span class="required">*</span></label>
+      <input type="text" id="address" bind:value={address} placeholder="Address" required />
     </div>
 
-    <!-- Optional Notes Field -->
-    <textarea bind:value={notes} placeholder="Notes (Optional)"></textarea>
+    <div class="form-group">
+      <label for="item">Select Item<span class="required">*</span></label>
+      <select bind:value={selectedItemCode} id="item" required>
+        <option value="">-- Select an Item --</option>
+        {#each items as item}
+          <option value={item.itemcode}>{item.itemcode} - {item.itemname}</option>
+        {/each}
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="notes">Notes</label>
+      <textarea id="notes" bind:value={notes} placeholder="Notes (Optional)"></textarea>
+    </div>
 
     <button type="submit" class="submit-btn" disabled={loading}>
       {loading ? "Adding..." : "Add Supplier"}
@@ -165,19 +183,20 @@
 <style>
   .form-container {
     width: 90%;
-    max-width: 600px;
+    max-width: 800px;
     margin: 5% auto;
     padding: 2rem;
-    border-radius: 12px;
-    background: #ffffff;
+    border-radius: 16px;
+    background-color: #f8f9fa;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-    position: relative;
+    border: 1px solid #dee2e6;
   }
 
   h2 {
     text-align: center;
     color: #2c3e50;
     margin-bottom: 1.5rem;
+    font-weight: 600;
   }
 
   .message {
@@ -187,37 +206,56 @@
     font-weight: 500;
     margin-bottom: 1rem;
   }
+
   .success {
     background: #2ecc71;
     color: white;
   }
+
   .error {
     background: #e74c3c;
     color: white;
   }
 
-  form {
+  .form-row {
     display: flex;
-    flex-direction: column;
     gap: 1rem;
+    margin-bottom: 1rem;
   }
 
-  .input-group {
+  .form-group {
+    flex: 1;
     display: flex;
-    gap: 1rem;
+    flex-direction: column;
+  }
+
+  label {
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+    color: #34495e;
+  }
+
+  .required {
+    color: red;
   }
 
   input,
+  select,
   textarea {
-    width: 100%;
     padding: 0.8rem;
     border-radius: 8px;
     border: 1px solid #dcdde1;
     font-size: 1rem;
     transition: all 0.3s ease;
+    background-color: #fff;
+  }
+
+  input::placeholder {
+    color: #999;
   }
 
   input:focus,
+  select:focus,
   textarea:focus {
     border-color: #3498db;
     outline: none;
@@ -225,42 +263,14 @@
   }
 
   textarea {
-    resize: none;
-    height: 100px;
-  }
-
-  .item-search {
-    position: relative;
-  }
-
-  .suggestions {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    background: white;
-    border: 1px solid #ddd;
-    border-top: none;
-    max-height: 200px;
-    overflow-y: auto;
-    border-radius: 0 0 8px 8px;
-    z-index: 10;
-  }
-
-  .suggestions li {
-    padding: 10px;
-    cursor: pointer;
-    transition: background 0.3s;
-  }
-
-  .suggestions li:hover {
-    background: #3498db;
-    color: white;
+    resize: vertical;
+    height: 120px;
   }
 
   .submit-btn {
     width: 100%;
     padding: 1rem;
+    margin-top: 1.5rem;
     border: none;
     border-radius: 8px;
     background: #3498db;
@@ -274,5 +284,21 @@
   .submit-btn:hover {
     background: #2980b9;
     box-shadow: 0 4px 15px rgba(52, 152, 219, 0.4);
+  }
+
+  /* Responsive styles */
+  @media (max-width: 768px) {
+    .form-container {
+      width: 95%;
+      padding: 1.5rem;
+    }
+
+    .form-row {
+      flex-direction: column;
+    }
+
+    .form-group {
+      width: 100%;
+    }
   }
 </style>

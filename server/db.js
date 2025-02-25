@@ -13,7 +13,12 @@ export async function getStockOverview() {
     return db.get(`
         SELECT COUNT(*) AS total_items,
                SUM(CASE WHEN qty < minstock THEN 1 ELSE 0 END) AS low_stock,
-               SUM(CASE WHEN expiry < DATE('now') THEN 1 ELSE 0 END) AS expired_items
+               SUM(CASE 
+                   WHEN expiry IS NOT NULL 
+                   AND DATE(SUBSTR(expiry, 7, 4) || '-' || SUBSTR(expiry, 1, 2) || '-' || SUBSTR(expiry, 4, 2)) < DATE('now') 
+                   THEN 1 
+                   ELSE 0 
+               END) AS expired_items
         FROM pmaster
     `);
 }

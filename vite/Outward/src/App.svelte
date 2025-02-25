@@ -2,159 +2,380 @@
   import { onMount } from 'svelte';
   import Navigation from "./lib/Navigation.svelte";
   import axios from "axios";
+  import { writable, derived } from 'svelte/store';
+  import * as XLSX from "xlsx";
 
-  let outwards = [];
-  let errorMessage = "";
-  let loading = false;
-  let successMessage = "";
+  // Stores
+  const outwards = writable([]);
+  const loading = writable(false);
+  const error = writable("");
+  const sortColumn = writable(null);
+  const sortDirection = writable("none");
 
-  // Fetch outwards records on component mount.
-  async function loadOutwards() {
-    loading = true;
-    try {
-      const response = await axios.get("http://localhost:5000/api/outwardsdata");
-      outwards = response.data;
-    } catch (error) {
-      console.error("Error fetching outwards:", error);
-      errorMessage = error.response?.data?.error || "Failed to load outwards records.";
+  const sortableColumns = [
+    "itemcode", "phone", "uuidout", "referece", "issueqty", "salevalue", "partsavgtot", "profits", "profitpercentage", "price"
+  ];
+
+  // Derived store for sorted items
+  const sortedOutwards = derived(
+    [outwards, sortColumn, sortDirection],
+    ([$outwards, $sortColumn, $sortDirection]) => {
+      if (!$sortColumn || $sortDirection === "none") {
+        return $outwards;
+      }
+      return sortItems([...$outwards], $sortColumn, $sortDirection);
     }
-    loading = false;
+  );
+
+  // Delete Handler
+  async function deleteOutward(uuidout) {
+    if (!confirm(`Delete outward record with UUID ${uuidout}?`)) return;
+    $loading = true;
+    try {
+      const response = await axios.delete(`http://localhost:5000/api/delete-outward/${uuidout}`);
+      if (response.status === 200) {
+        // Optimistically update the UI
+        outwards.update(currentOutwards => currentOutwards.filter(outward => outward.uuidout !== uuidout));
+        $error = "";
+      } else {
+        $error = `Delete failed: ${response.data.error || "Unknown error"}`;
+      }
+    } catch (err) {
+      $error = "Delete error: " + err.message;
+    } finally {
+      $loading = false;
+    }
   }
 
-  // Call loadOutwards when component mounts.
-  onMount(() => {
-    loadOutwards();
-  });
-
-  // Download XLSX file from the backend.
-  async function downloadXLSX() {
+  // Data Fetching
+  async function fetchOutwards() {
+    $error = "";
+    $loading = true;
     try {
-      const response = await axios.get("http://localhost:5000/api/download-outwards", {
-        responseType: "blob"
-      });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const response = await axios.get("http://localhost:5000/api/outwardsdata");
+      $outwards = response.data;
+    } catch (err) {
+      $error = "Failed to fetch outwards: " + err.message;
+    } finally {
+      $loading = false;
+    }
+  }
+
+  onMount(fetchOutwards);
+
+  // Sorting Functions
+  function resetSort() {
+    $sortColumn = null;
+    $sortDirection = "none";
+  }
+
+  function sortData(column) {
+    if (!sortableColumns.includes(column)) return;
+    if ($sortColumn === column) {
+      if ($sortDirection === "asc") {
+        $sortDirection = "desc";
+      } else if ($sortDirection === "desc") {
+        $sortDirection = "none";
+        $sortColumn = null;
+      } else {
+        $sortDirection = "asc";
+      }
+    } else {
+      $sortColumn = column;
+      $sortDirection = "asc";
+    }
+  }
+
+  function getSortIndicator(column) {
+    if ($sortColumn === column) {
+      if ($sortDirection === "asc") {
+        return "↑";
+      } else if ($sortDirection === "desc") {
+        return "↓";
+      }
+    }
+    return "↕";
+  }
+
+  function sortItems(itemsArray, column, direction) {
+    let sortedItems = [...itemsArray];
+    sortedItems.sort((a, b) => {
+      let valA = a[column];
+      let valB = b[column];
+
+      if (valA == null || valA === "") valA = direction === "asc" ? Infinity : -Infinity;
+      if (valB == null || valB === "") valB = direction === "asc" ? Infinity : -Infinity;
+
+      if (["issueqty", "salevalue", "partsavgtot", "profits", "profitpercentage", "price"].includes(column)) {
+        const numA = Number(valA);
+        const numB = Number(valB);
+        return direction === "asc" ? numA - numB : numB - numA;
+      } else {
+        return direction === "asc" ? String(valA).localeCompare(String(valB)) : String(valB).localeCompare(String(valA));
+      }
+    });
+    return sortedItems;
+  }
+
+  // Excel Download
+  function downloadAsExcel() {
+    try {
+      const formattedData = $outwards.map(item => ({
+        ...item,
+        //dtpur: formatDateForDisplay(item.dtpur), // If you have date fields
+        //expiry: formatDateForDisplay(item.expiry), // If you have date fields
+      }));
+      const worksheet = XLSX.utils.json_to_sheet(formattedData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Outwards Data");
+      const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+      const blob = new Blob([excelBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
       const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", "outwards.xlsx");
+      link.href = URL.createObjectURL(blob);
+      link.download = "OutwardsData.xlsx";
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-    } catch (error) {
-      console.error("Error downloading XLSX:", error);
-      errorMessage = error.response?.data?.error || "Failed to download XLSX file.";
+    } catch (err) {
+      console.error("Excel export failed:", err);
+      $error = "Excel export failed: " + err.message;
     }
   }
+
+  function navigateToAddOutwards() {
+    window.location.href = '/outwards/add-outwards';
+  }
+
 </script>
 
 <Navigation />
 
-<div class="container">
-  <!-- Header with title and download button -->
+<div class="container" style="height: 75vh; display: flex; flex-direction: column;">
   <div class="header">
     <h2>Outwards Records</h2>
-    <button class="download-btn" on:click={downloadXLSX}>
-      Download XLSX
-    </button>
+    <div>
+      <button class="btn btn-download" on:click={downloadAsExcel}>
+        <i class="fas fa-file-excel"></i> Download Excel
+      </button>
+    </div>
   </div>
 
-  {#if loading}
-    <p>Loading outwards...</p>
-  {:else if errorMessage}
-    <div class="message error">{errorMessage}</div>
+  {#if $error}
+    <div class="alert alert-error">{$error}</div>
+  {:else if $loading}
+    <div class="alert alert-info">Loading...</div>
+  {:else if $outwards.length === 0}
+    <div class="alert alert-warning">No outwards records found.</div>
   {:else}
-    {#if outwards.length > 0}
-      <table>
-        <thead>
+    <div class="table-responsive">
+      <table class="table">
+        <thead class="sticky-header">
           <tr>
-            <th>ID</th>
-            <th>Item Code</th>
-            <th>Phone</th>
-            <th>UUID</th>
-            <th>Issue Qty</th>
-            <th>Sale Value</th>
+            <th on:click={() => sortData("itemcode")}>
+              Item Code {getSortIndicator("itemcode")}
+            </th>
+            <th on:click={() => sortData("phone")}>
+              Phone {getSortIndicator("phone")}
+            </th>
+            <th on:click={() => sortData("uuidout")}>
+              UUID {getSortIndicator("uuidout")}
+            </th>
+            <th on:click={() => sortData("referece")}>
+              Reference {getSortIndicator("referece")}
+            </th>
+            <th on:click={() => sortData("issueqty")}>
+              Issue Qty {getSortIndicator("issueqty")}
+            </th>
+            <th on:click={() => sortData("salevalue")}>
+              Sale Value {getSortIndicator("salevalue")}
+            </th>
+            <th on:click={() => sortData("partsavgtot")}>
+              Parts Avg Total {getSortIndicator("partsavgtot")}
+            </th>
+            <th on:click={() => sortData("profits")}>
+              Profits {getSortIndicator("profits")}
+            </th>
+            <th on:click={() => sortData("profitpercentage")}>
+              Profit Percentage {getSortIndicator("profitpercentage")}
+            </th>
+            <th on:click={() => sortData("price")}>
+              Price {getSortIndicator("price")}
+            </th>
+            <th>Delete</th>
           </tr>
         </thead>
         <tbody>
-          {#each outwards as record, index}
+          {#each $sortedOutwards as outward (outward.uuidout)}
             <tr>
-              <td>{index + 1}</td>
-              <td>{record.itemcode}</td>
-              <td>{record.phone}</td>
-              <td>{record.uuidout}</td>
-              <td>{record.issueqty}</td>
-              <td>{record.salevalue}</td>
+              <td>{outward.itemcode}</td>
+              <td>{outward.phone}</td>
+              <td>{outward.uuidout}</td>
+              <td>{outward.referece}</td>
+              <td>{outward.issueqty}</td>
+              <td>{outward.salevalue}</td>
+              <td>{outward.partsavgtot}</td>
+              <td>{outward.profits}</td>
+              <td>{outward.profitpercentage}</td>
+              <td>{outward.price}</td>
+              <td>
+                <button class="btn btn-delete" on:click={() => deleteOutward(outward.uuidout)}>
+                  <i class="fas fa-trash"></i>
+                </button>
+              </td>
             </tr>
           {/each}
         </tbody>
       </table>
-    {:else}
-      <p>No outwards records found.</p>
-    {/if}
+    </div>
   {/if}
+  <div style="margin-top: 1rem; text-align: center;">
+    <button class="btn btn-add" on:click={navigateToAddOutwards}>Add Outwards</button>
+  </div>
 </div>
 
 <style>
+  /* Styles (you can copy the relevant parts from your pmaster component) */
   .container {
     width: 90%;
-    max-width: 1000px;
+    max-width: 1600px;
     margin: 2rem auto;
     padding: 1rem;
+    background-color: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    position: relative;
   }
 
   .header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1.5rem;
-  }
-
-  h2 {
-    margin: 0;
-    color: #2c3e50;
-  }
-
-  .message.error {
-    background: #e74c3c;
-    color: white;
-    padding: 0.8rem;
-    border-radius: 8px;
-    text-align: center;
     margin-bottom: 1rem;
   }
 
-  table {
+  h2 {
+    margin-bottom: 1rem;
+  }
+
+  .alert {
+    padding: 0.75rem 1.25rem;
+    margin-bottom: 1rem;
+    border-radius: 0.375rem;
+    text-align: center;
+  }
+  .alert-error {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+  }
+  .alert-info {
+    background-color: #cce5ff;
+    color: #004085;
+    border: 1px solid #b8daff;
+  }
+  .alert-warning {
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeeba;
+  }
+
+  .table-responsive {
+    overflow-x: auto;
+    flex: 1;
+  }
+
+  .table {
     width: 100%;
     border-collapse: collapse;
-    margin-bottom: 1.5rem;
+    margin-top: 1rem;
   }
 
-  th, td {
-    border: 1px solid #ddd;
+  .table th,
+  .table td {
     padding: 0.75rem;
     text-align: left;
+    border-bottom: 1px solid #e2e8f0;
+    border-right: 1px solid #e2e8f0;
   }
 
-  th {
-    background: #3498db;
+  .table thead th {
+    background-color: #edf2f7;
+    color: #4a5568;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .table tbody tr:nth-child(even) {
+    background-color: #f9fafb;
+  }
+
+  .btn {
+    padding: 0.5rem 0.75rem;
+    border: none;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    font-size: 1rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+  }
+
+  .btn-delete {
+    background-color: #f87171;
     color: white;
   }
 
-  tr:nth-child(even) {
-    background: #f9f9f9;
+  .btn-delete:hover {
+    background-color: #ef4444;
+  }
+  .btn-add {
+    background-color: #4299e1;
+    color: white;
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: background-color 0.2s ease;
+  }
+  .btn-add:hover {
+    background-color: #3182ce;
   }
 
-  .download-btn {
-    padding: 0.75rem 1.5rem;
-    background: #2ecc71;
+  .btn-download {
+    background-color: #34d399;
     color: white;
     border: none;
-    border-radius: 8px;
-    font-size: 1rem;
-    cursor: pointer;
-    transition: background 0.3s ease;
+    border-radius: 0.375rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    transition: background-color 0.2s ease;
+  }
+  .btn-download:hover {
+    background-color: #10b981;
   }
 
-  .download-btn:hover {
-    background: #27ae60;
+  /* Font Awesome Icons */
+  :global(.fa-trash) {
+    margin-right: 0.25rem;
+  }
+  :global(.fa-file-excel) {
+    margin-right: 0.5rem;
+  }
+
+  /* Sticky Header Styling */
+  .sticky-header {
+    position: sticky;
+    top: 0;
+    z-index: 1; /* Ensure it stays on top of other content */
+    background-color: #edf2f7; /* Match the header background */
+  }
+
+  /* Optional: Add a slight shadow for better visual separation */
+  .sticky-header th {
+    box-shadow: 0px 2px 2px -1px rgba(0,0,0,0.1);
   }
 </style>
