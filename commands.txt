@@ -7,6 +7,9 @@ indwards
 outwards
 
 
+
+
+
 -- Drop existing tables if they exist
 DROP TABLE IF EXISTS outwards;
 DROP TABLE IF EXISTS indwards;
