@@ -6,6 +6,9 @@ customers
 indwards
 outwards
 
+Testing this new thing
+
+
 
 -- Drop existing tables if they exist
 DROP TABLE IF EXISTS outwards;
